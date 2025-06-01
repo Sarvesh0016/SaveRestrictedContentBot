@@ -1,23 +1,36 @@
-import glob
-from pathlib import Path
-from main.utils import load_plugins
-import logging
-from . import bot
 
-logging.basicConfig(format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s',
-                    level=logging.WARNING)
+import os
+import threading
+from pyrogram import Client
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-path = "main/plugins/*.py"
-files = glob.glob(path)
-for name in files:
-    with open(name) as a:
-        patt = Path(a.name)
-        plugin_name = patt.stem
-        load_plugins(plugin_name.replace(".py", ""))
+# Fetch BOT_TOKEN from environment variables
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
 
-#Don't be a thief 
-print("Successfully deployed!")
-print("By MaheshChauhan • DroneBots")
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN environment variable not set!")
 
-if __name__ == "__main__":
-    bot.run_until_disconnected()
+# Initialize the bot client
+app = Client("my_bot", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
+
+# Define a simple HTTP handler for health checks
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+# Function to run the health check server
+def run_health_server():
+    server = HTTPServer(('0.0.0.0', 8080), HealthHandler)
+    print("🩺 Health check server running on port 8080")
+    server.serve_forever()
+
+# Start the health check server in a separate thread
+threading.Thread(target=run_health_server, daemon=True).start()
+
+# Start the bot
+print("🚀 Starting Telegram bot...")
+app.run()

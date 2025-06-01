@@ -1,23 +1,34 @@
-import glob
-from pathlib import Path
-from main.utils import load_plugins
-import logging
-from . import bot
+import os
+from pyrogram import Client
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 
-logging.basicConfig(format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s',
-                    level=logging.WARNING)
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-path = "main/plugins/*.py"
-files = glob.glob(path)
-for name in files:
-    with open(name) as a:
-        patt = Path(a.name)
-        plugin_name = patt.stem
-        load_plugins(plugin_name.replace(".py", ""))
+# Create Pyrogram bot client
+app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-#Don't be a thief 
-print("Successfully deployed!")
-print("By MaheshChauhan • DroneBots")
+# Health check handler for Koyeb
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
 
-if __name__ == "__main__":
-    bot.run_until_disconnected()
+# Run health server on port 8080
+def run_health_server():
+    try:
+        server = HTTPServer(('0.0.0.0', 8080), HealthHandler)
+        print("✅ Health check server running on port 8080")
+        server.serve_forever()
+    except Exception as e:
+        print(f"❌ Failed to start health server: {e}")
+
+# Start health check server in a background thread
+threading.Thread(target=run_health_server, daemon=True).start()
+
+# Start the bot
+print("🚀 Starting bot...")
+app.run()
